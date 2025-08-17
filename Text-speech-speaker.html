@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>AI Voice Reader — TTS Workbench (Full)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<style>
+  /* ——— GOLD/ONYX THEME ——— */
+  html,body{height:100%;margin:0;background:#000;color:#c58b00;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;-webkit-font-smoothing:antialiased}
+  :root{--gold:#c58b00;--gold2:#ffda73;--muted:#bfa05a}
+  a{color:var(--gold);text-decoration:none;border-bottom:1px dotted #7a5700}
+  a:hover{color:var(--gold2)}
+  .wrap{max-width:1200px;margin:0 auto;padding:calc(12px + 1vmin);box-sizing:border-box}
+  .title{display:flex;align-items:center;gap:0.8rem;margin:0 0 calc(10px + 0.5vmin) 0;flex-wrap:wrap}
+  h1{margin:0;font-size:1.2rem;color:var(--gold2);line-height:1}
+  .badges{display:flex;gap:0.5rem;align-items:center;margin-left:auto}
+  .badge{border:1px solid var(--gold);border-radius:999px;padding:0.25rem 0.6rem;font-size:0.85rem;background:#000;color:var(--gold)}
+  .deviceBadge{border:1px solid #444;border-radius:8px;padding:0.2rem 0.5rem;font-size:0.82rem;color:#ddd;background:#111;margin-left:0.5rem}
+  .row{display:flex;gap:1rem;align-items:flex-start}
+  .col{flex:1 1 320px;min-width:220px}
+  .panel{background:rgba(0,0,0,0.45);border:1px solid var(--gold);border-radius:0.75rem;padding:calc(10px + 0.5vmin);box-sizing:border-box}
+  textarea{width:100%;min-height:14rem;background:#000;color:var(--gold);border:1px solid var(--gold);border-radius:0.5rem;padding:0.9rem;resize:vertical;line-height:1.55;font-size:0.95rem;box-sizing:border-box}
+  select,input[type="range"],input[type="number"]{width:100%;background:#000;border:1px solid var(--gold);border-radius:0.5rem;color:var(--gold);padding:0.5rem 0.6rem;font-size:0.95rem}
+  label{font-size:0.85rem;color:var(--muted);display:block;margin-bottom:0.35rem}
+  .controls{display:grid;grid-template-columns:repeat(3, minmax(120px,1fr));gap:0.6rem}
+  .btns{display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center}
+  button{cursor:pointer;border:1px solid var(--gold);background:#000;color:var(--gold);border-radius:0.6rem;padding:0.6rem 0.9rem;font-weight:700;font-size:0.95rem}
+  button.primary{background:var(--gold);color:#000}
+  button.ghost{background:#000}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .meter{height:0.5rem;background:#120900;border-radius:6px;overflow:hidden;margin-top:0.6rem}
+  .bar{height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .12s}
+  .preview{white-space:pre-wrap;word-break:break-word;line-height:1.65;border:1px dashed var(--gold);border-radius:0.5rem;padding:0.8rem;min-height:7rem;font-size:0.95rem;background:#000}
+  .w{padding:0.06rem 0.22rem;border-radius:0.25rem}
+  .w.active{background:var(--gold);color:#000}
+  .muted{color:var(--muted)}
+  .small{font-size:0.85rem;color:var(--muted)}
+  .pill{display:inline-block;padding:0.18rem 0.6rem;border:1px solid var(--gold);border-radius:999px;margin:0.2rem;font-size:0.85rem;background:#000;color:var(--gold)}
+  .footer{opacity:.9;margin:1rem 0;color:var(--muted);font-size:0.92rem}
+  @media (max-width:900px){ .controls{grid-template-columns:repeat(2,1fr)} .row{flex-direction:column} textarea{min-height:12rem} }
+  /* subtle focus */
+  :focus{outline:none;box-shadow:0 0 0 3px rgba(197,139,0,0.08)}
+</style>
+</head>
+<body>
+<div class="wrap" id="appWrap">
+  <div class="title">
+    <h1>🔊 AI Voice Reader — TTS Workbench</h1>
+    <div class="badges" aria-hidden="true">
+      <span class="badge">No Backend</span>
+      <span class="badge">Web Speech API</span>
+      <span class="badge">Smart Speed</span>
+    </div>
+    <div id="deviceMode" class="deviceBadge" title="Current device mode">mode: —</div>
+  </div>
+
+  <div class="row" id="mainRow">
+    <div class="col">
+      <div class="panel">
+        <div class="btns" style="justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+          <div class="btns" role="group" aria-label="play controls">
+            <button class="primary" id="playBtn">▶︎ Play</button>
+            <button class="ghost" id="pauseBtn">⏸ Pause</button>
+            <button class="ghost" id="resumeBtn">⏵ Resume</button>
+            <button class="ghost" id="stopBtn">⏹ Stop</button>
+          </div>
+          <div class="btns" style="justify-self:end">
+            <button id="sampleBtn" title="Insert sample text">✨ Sample</button>
+            <button id="clearBtn">🧹 Clear</button>
+            <label class="pill small"><input type="checkbox" id="loopChk" /> loop</label>
+          </div>
+        </div>
+
+        <textarea id="textInput" placeholder="Paste or type text here…" aria-label="Text to read"></textarea>
+        <div class="small muted" style="margin-top:0.6rem">
+          Tip: <span class="pill">Space</span> toggles pause/resume. <span class="pill">Esc</span> stops. <span class="pill">Enter</span> plays when focused on the text.
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="panel">
+        <div class="controls" aria-hidden="false">
+          <div>
+            <label for="voiceSel">Voice</label>
+            <select id="voiceSel" aria-label="Select voice"></select>
+          </div>
+          <div>
+            <label for="speedMode">Speed Mode</label>
+            <select id="speedMode">
+              <option value="normal" selected>Normal (1.0x)</option>
+              <option value="quick">Quick (1.25x)</option>
+              <option value="advanced">Advanced (1.5x)</option>
+              <option value="super">Super (2.0x)</option>
+              <option value="smart">Smart (auto)</option>
+            </select>
+          </div>
+          <div>
+            <label>Pitch (<span id="pitchVal">1.0</span>)</label>
+            <input type="range" id="pitch" min="0" max="2" step="0.1" value="1" aria-label="Pitch" />
+          </div>
+          <div>
+            <label>Volume (<span id="volVal">1.0</span>)</label>
+            <input type="range" id="volume" min="0" max="1" step="0.05" value="1" aria-label="Volume" />
+          </div>
+          <div>
+            <label>Effective Rate</label>
+            <input type="number" id="rateOut" step="0.05" min="0.5" max="3" value="1.2" />
+          </div>
+          <div>
+            <label>Language Hint</label>
+<select id="langHint">
+  <option value="">Auto (voice)</option>
+  <option value="af-ZA">Afrikaans (South Africa)</option>
+  <option value="am-ET">Amharic (Ethiopia)</option>
+  <option value="ar-SA">Arabic (Saudi Arabia)</option>
+  <option value="ar-EG">Arabic (Egypt)</option>
+  <option value="ar-DZ">Arabic (Algeria)</option>
+  <option value="ar-MA">Arabic (Morocco)</option>
+  <option value="ar-TN">Arabic (Tunisia)</option>
+  <option value="ar-IQ">Arabic (Iraq)</option>
+  <option value="ar-SY">Arabic (Syria)</option>
+  <option value="az-AZ">Azerbaijani (Azerbaijan)</option>
+  <option value="be-BY">Belarusian (Belarus)</option>
+  <option value="bg-BG">Bulgarian (Bulgaria)</option>
+  <option value="bn-BD">Bengali (Bangladesh)</option>
+  <option value="bn-IN">Bengali (India)</option>
+  <option value="bs-BA">Bosnian (Bosnia and Herzegovina)</option>
+  <option value="ca-ES">Catalan (Spain)</option>
+  <option value="ceb-PH">Cebuano (Philippines)</option>
+  <option value="cs-CZ">Czech (Czech Republic)</option>
+  <option value="cy-GB">Welsh (United Kingdom)</option>
+  <option value="da-DK">Danish (Denmark)</option>
+  <option value="de-DE">German (Germany)</option>
+  <option value="de-AT">German (Austria)</option>
+  <option value="de-CH">German (Switzerland)</option>
+  <option value="dv-MV">Dhivehi (Maldives)</option>
+  <option value="el-GR">Greek (Greece)</option>
+  <option value="en-US">English (United States)</option>
+  <option value="en-GB">English (United Kingdom)</option>
+  <option value="en-AU">English (Australia)</option>
+  <option value="en-CA">English (Canada)</option>
+  <option value="en-IN">English (India)</option>
+  <option value="en-NZ">English (New Zealand)</option>
+  <option value="en-ZA">English (South Africa)</option>
+  <option value="es-ES">Spanish (Spain)</option>
+  <option value="es-MX">Spanish (Mexico)</option>
+  <option value="es-AR">Spanish (Argentina)</option>
+  <option value="es-CO">Spanish (Colombia)</option>
+  <option value="es-CL">Spanish (Chile)</option>
+  <option value="es-PE">Spanish (Peru)</option>
+  <option value="es-US">Spanish (United States)</option>
+  <option value="et-EE">Estonian (Estonia)</option>
+  <option value="eu-ES">Basque (Spain)</option>
+  <option value="fa-IR">Persian (Iran)</option>
+  <option value="fi-FI">Finnish (Finland)</option>
+  <option value="fil-PH">Filipino (Philippines)</option>
+  <option value="fr-FR">French (France)</option>
+  <option value="fr-CA">French (Canada)</option>
+  <option value="fr-CH">French (Switzerland)</option>
+  <option value="fr-BE">French (Belgium)</option>
+  <option value="fr-LU">French (Luxembourg)</option>
+  <option value="ga-IE">Irish (Ireland)</option>
+  <option value="gl-ES">Galician (Spain)</option>
+  <option value="gu-IN">Gujarati (India)</option>
+  <option value="he-IL">Hebrew (Israel)</option>
+  <option value="hi-IN">Hindi (India)</option>
+  <option value="hr-HR">Croatian (Croatia)</option>
+  <option value="hu-HU">Hungarian (Hungary)</option>
+  <option value="hy-AM">Armenian (Armenia)</option>
+  <option value="id-ID">Indonesian (Indonesia)</option>
+  <option value="is-IS">Icelandic (Iceland)</option>
+  <option value="it-IT">Italian (Italy)</option>
+  <option value="ja-JP">Japanese (Japan)</option>
+  <option value="jv-ID">Javanese (Indonesia)</option>
+  <option value="ka-GE">Georgian (Georgia)</option>
+  <option value="kk-KZ">Kazakh (Kazakhstan)</option>
+  <option value="km-KH">Khmer (Cambodia)</option>
+  <option value="kn-IN">Kannada (India)</option>
+  <option value="ko-KR">Korean (South Korea)</option>
+  <option value="ku-TR">Kurdish (Turkey)</option>
+  <option value="ky-KG">Kyrgyz (Kyrgyzstan)</option>
+  <option value="la-VA">Latin (Vatican)</option>
+  <option value="lo-LA">Lao (Laos)</option>
+  <option value="lt-LT">Lithuanian (Lithuania)</option>
+  <option value="lv-LV">Latvian (Latvia)</option>
+  <option value="mk-MK">Macedonian (North Macedonia)</option>
+  <option value="ml-IN">Malayalam (India)</option>
+  <option value="mn-MN">Mongolian (Mongolia)</option>
+  <option value="mr-IN">Marathi (India)</option>
+  <option value="ms-MY">Malay (Malaysia)</option>
+  <option value="mt-MT">Maltese (Malta)</option>
+  <option value="my-MM">Burmese (Myanmar)</option>
+  <option value="ne-NP">Nepali (Nepal)</option>
+  <option value="nl-NL">Dutch (Netherlands)</option>
+  <option value="nl-BE">Dutch (Belgium)</option>
+  <option value="no-NO">Norwegian (Norway)</option>
+  <option value="ny-MW">Chichewa (Malawi)</option>
+  <option value="pa-IN">Punjabi (India)</option>
+  <option value="pa-PK">Punjabi (Pakistan)</option>
+  <option value="pl-PL">Polish (Poland)</option>
+  <option value="ps-AF">Pashto (Afghanistan)</option>
+  <option value="pt-PT">Portuguese (Portugal)</option>
+  <option value="pt-BR">Portuguese (Brazil)</option>
+  <option value="ro-RO">Romanian (Romania)</option>
+  <option value="ru-RU">Russian (Russia)</option>
+  <option value="si-LK">Sinhala (Sri Lanka)</option>
+  <option value="sk-SK">Slovak (Slovakia)</option>
+  <option value="sl-SI">Slovenian (Slovenia)</option>
+  <option value="so-SO">Somali (Somalia)</option>
+  <option value="sq-AL">Albanian (Albania)</option>
+  <option value="sr-RS">Serbian (Serbia)</option>
+  <option value="su-ID">Sundanese (Indonesia)</option>
+  <option value="sv-SE">Swedish (Sweden)</option>
+  <option value="sw-KE">Swahili (Kenya)</option>
+  <option value="sw-TZ">Swahili (Tanzania)</option>
+  <option value="ta-IN">Tamil (India)</option>
+  <option value="ta-SG">Tamil (Singapore)</option>
+  <option value="ta-MY">Tamil (Malaysia)</option>
+  <option value="ta-LK">Tamil (Sri Lanka)</option>
+  <option value="te-IN">Telugu (India)</option>
+  <option value="tg-TJ">Tajik (Tajikistan)</option>
+  <option value="th-TH">Thai (Thailand)</option>
+  <option value="tr-TR">Turkish (Turkey)</option>
+  <option value="uk-UA">Ukrainian (Ukraine)</option>
+  <option value="ur-PK">Urdu (Pakistan)</option>
+  <option value="ur-IN">Urdu (India)</option>
+  <option value="uz-UZ">Uzbek (Uzbekistan)</option>
+  <option value="vi-VN">Vietnamese (Vietnam)</option>
+  <option value="xh-ZA">Xhosa (South Africa)</option>
+  <option value="yi-DE">Yiddish (Germany)</option>
+  <option value="yo-NG">Yoruba (Nigeria)</option>
+  <option value="zh-CN">Chinese (Simplified, China)</option>
+  <option value="zh-TW">Chinese (Traditional, Taiwan)</option>
+  <option value="zh-HK">Chinese (Hong Kong)</option>
+  <option value="zu-ZA">Zulu (South Africa)</option>
+</select>
+
+          </div>
+        </div>
+
+        <div style="margin-top:0.8rem">
+          <div class="meter" title="Progress"><div class="bar" id="bar"></div></div>
+          <div class="small muted" style="margin-top:0.6rem" id="statLine">Detecting voices…</div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:0.8rem">
+        <div class="small muted" style="margin-bottom:0.4rem">Live text with word highlighting</div>
+        <div id="preview" class="preview" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer small">Works entirely in your browser. Voice availability and quality depend on your browser & OS.</div>
+</div>
+
+<script>
+/* ======================
+   TTS Workbench: full client-side
+   ====================== */
+
+/* Utilities */
+const qs = s => document.querySelector(s);
+const qsa = s => Array.from(document.querySelectorAll(s));
+const bar = qs('#bar');
+const statLine = qs('#statLine');
+const deviceModeBadge = qs('#deviceMode');
+
+/* Auto root scaling for responsive UI */
+function computeRootFontSize(){
+  const w = Math.max(window.innerWidth, document.documentElement.clientWidth);
+  const dpr = Math.max(window.devicePixelRatio || 1, 1);
+  let base;
+  if(w < 480) base = 14;
+  else if(w < 700) base = 15;
+  else if(w < 1000) base = 16;
+  else if(w < 1400) base = 17.5;
+  else base = 19;
+  base = Math.round((base * (1 + (dpr - 1) * 0.45))*10)/10;
+  return base;
+}
+function applyRootScale(){
+  const size = computeRootFontSize();
+  document.documentElement.style.fontSize = size + 'px';
+  const w = window.innerWidth;
+  let mode = 'desktop';
+  if(w < 700) mode = 'mobile';
+  else if(w < 1000) mode = 'tablet';
+  deviceModeBadge.textContent = `mode: ${mode}`;
+}
+window.addEventListener('resize', applyRootScale);
+window.addEventListener('orientationchange', ()=>setTimeout(applyRootScale,120));
+applyRootScale();
+
+/* Elements & state */
+const supportsTTS = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+const voiceSel   = qs('#voiceSel');
+const speedMode  = qs('#speedMode');
+const pitchEl    = qs('#pitch');
+const pitchVal   = qs('#pitchVal');
+const volumeEl   = qs('#volume');
+const volVal     = qs('#volVal');
+const rateOut    = qs('#rateOut');
+const langHint   = qs('#langHint');
+const textInput  = qs('#textInput');
+const preview    = qs('#preview');
+const loopChk    = qs('#loopChk');
+const playBtn    = qs('#playBtn');
+const pauseBtn   = qs('#pauseBtn');
+const resumeBtn  = qs('#resumeBtn');
+const stopBtn    = qs('#stopBtn');
+const sampleBtn  = qs('#sampleBtn');
+const clearBtn   = qs('#clearBtn');
+
+let voices = [];
+let currentUtter = null;
+let playing = false;
+let words = [];
+let wordIndex = 0;
+let persistedText = localStorage.getItem('tts_text') || '';
+textInput.value = persistedText;
+
+/* Auto-resize textarea */
+function autoResizeText(){
+  requestAnimationFrame(()=> {
+    textInput.style.height = '3rem';
+    textInput.style.height = Math.max(160, textInput.scrollHeight) + 'px';
+  });
+}
+textInput.addEventListener('input', ()=>{ localStorage.setItem('tts_text', textInput.value); autoResizeText(); if(speedMode.value==='smart') applySpeedMode(); renderPreview(); });
+
+autoResizeText();
+
+/* Voice loading & selection logic */
+function setSupportNote(){
+  const supportNote = qs('#statLine');
+  if(!supportsTTS){
+    supportNote.textContent = '⚠️ Web Speech API not supported in this browser.';
+    return;
+  }
+  supportNote.textContent = voices.length ? `Loaded ${voices.length} voices` : 'Loading voices… (click anywhere to prompt)';
+}
+function loadVoices(){
+  voices = window.speechSynthesis.getVoices().sort((a,b)=> (a.lang||'').localeCompare(b.lang||''));
+  voiceSel.innerHTML = '';
+  voices.forEach((v,i)=>{
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = `${v.name} — ${v.lang}${v.default ? ' (default)' : ''}`;
+    voiceSel.appendChild(o);
+  });
+  // choose sensible default: prefer en-US, else first
+  const idx = voices.findIndex(v => /en-?US/i.test(v.lang));
+  voiceSel.value = String(idx >= 0 ? idx : 0);
+  setSupportNote();
+}
+if(supportsTTS){
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+  // some browsers need a nudge
+  setTimeout(loadVoices, 300);
+} else setSupportNote();
+
+/* Auto-select voice when language hint changes.
+   Strategy:
+   1. If langHint empty -> keep current voice.
+   2. Try exact match on voice.lang === langHint
+   3. Try prefix match voice.lang.startsWith(langPrefix) (e.g., 'en' matches 'en-US')
+   4. If still none, try fuzzy by locale country match in name
+*/
+function selectVoiceForLang(code){
+  if(!voices || voices.length===0) return;
+  if(!code) return;
+  // Normalize: sometimes codes provided like 'en' or 'en-US'
+  const normalized = code.trim();
+  // exact match
+  let choice = voices.find(v => (v.lang||'').toLowerCase() === normalized.toLowerCase());
+  if(!choice){
+    // prefix match: en -> en-US/en-GB
+    const prefix = normalized.split('-')[0];
+    choice = voices.find(v => (v.lang||'').toLowerCase().startsWith(prefix.toLowerCase()));
+  }
+  if(!choice){
+    // name contains country or language hint
+    const parts = normalized.split('-');
+    const term = parts[1] || parts[0];
+    choice = voices.find(v => (v.name||'').toLowerCase().includes(term.toLowerCase()));
+  }
+  if(choice){
+    const idx = voices.indexOf(choice);
+    if(idx>=0) voiceSel.value = String(idx);
+  }
+}
+
+/* Speed logic */
+function wordCount(txt){ return (txt.trim().match(/\b\w+\b/g)||[]).length; }
+function sentenceCount(txt){ return (txt.match(/[.!?]+(\s|$)/g)||[]).length || 1; }
+function smartRateFromText(txt){
+  const w = wordCount(txt);
+  const s = sentenceCount(txt)||1;
+  const avg = w/s;
+  let rate = 0.95 + Math.min(1.05, (w/600)) + Math.min(0.4, (avg-12)/60);
+  return Math.max(0.8, Math.min(2.2, rate));
+}
+function applySpeedMode(){
+  const mode = speedMode.value;
+  const txt = textInput.value || '';
+  let rate = 1;
+  if(mode === 'normal') rate = 1.0;
+  else if(mode === 'quick') rate = 1.25;
+  else if(mode === 'advanced') rate = 1.5;
+  else if(mode === 'super') rate = 2.0;
+  else if(mode === 'smart') rate = smartRateFromText(txt);
+  rateOut.value = Number(rate.toFixed(2));
+}
+speedMode.onchange = applySpeedMode;
+
+/* Preview & highlighting */
+function renderPreview(){
+  const txt = textInput.value || '';
+  const parts = txt.split(/(\b[\w’'--]+\b)/g); // allow hyphen/apostrophes
+  words = [];
+  preview.innerHTML = '';
+  parts.forEach(p => {
+    if(/\b[\w’'--]+\b/.test(p)){
+      const span = document.createElement('span');
+      span.className = 'w';
+      span.textContent = p;
+      words.push(span);
+      preview.appendChild(span);
+    } else {
+      preview.appendChild(document.createTextNode(p));
+    }
+  });
+  wordIndex = 0;
+  updateProgress(0);
+}
+function highlightBoundary(/*charIndex*/) {
+  const i = Math.min(wordIndex, Math.max(0, words.length-1));
+  qsa('.w.active').forEach(el=>el.classList.remove('active'));
+  if(words[i]) words[i].classList.add('active');
+  wordIndex++;
+  updateProgress(wordIndex / Math.max(1, words.length));
+  if(words[i]){
+    if(words[i].offsetTop < preview.scrollTop || (words[i].offsetTop + words[i].offsetHeight) > (preview.scrollTop + preview.clientHeight)){
+      preview.scrollTo({top: Math.max(0, words[i].offsetTop - 40), behavior:'smooth'});
+    }
+  }
+}
+function updateProgress(p){ bar.style.width = Math.round(p*100) + '%'; }
+
+/* Core TTS operations */
+function speak(){
+  if(!supportsTTS){ alert('Web Speech API not supported in this browser.'); return; }
+  stop(true);
+  const txt = (textInput.value || '').trim();
+  if(!txt){ alert('Enter some text to read.'); return; }
+
+  // Build utterance
+  const u = new SpeechSynthesisUtterance(txt);
+  currentUtter = u;
+
+  const selectedVoiceIndex = Number(voiceSel.value);
+  const v = voices[selectedVoiceIndex] || voices[0];
+  if(v) u.voice = v;
+
+  const hint = (langHint.value || '').trim();
+  if(hint) u.lang = hint;
+
+  u.pitch = Number(pitchEl.value) || 1;
+  u.volume = Number(volumeEl.value) || 1;
+
+  // rate
+  applySpeedMode();
+  u.rate = Number(rateOut.value) || 1;
+
+  // events
+  u.onstart = ()=>{
+    playing = true;
+    statLine.textContent = `Playing… ${u.voice ? u.voice.name : 'default'} | rate ${u.rate.toFixed(2)} | pitch ${u.pitch.toFixed(2)}`;
+    renderPreview();
+  };
+  u.onend = ()=>{
+    playing = false;
+    updateProgress(1);
+    statLine.textContent = 'Done.';
+    if(loopChk.checked){ setTimeout(()=>speak(), 120); }
+  };
+  u.onpause = ()=> statLine.textContent = 'Paused.';
+  u.onresume = ()=> statLine.textContent = 'Resumed.';
+  u.onerror = (e)=>{ playing = false; console.error(e); statLine.textContent = 'Error: ' + (e.error || 'unknown'); };
+  u.onboundary = (e)=>{
+    // some engines provide word boundary with charIndex
+    highlightBoundary(e.charIndex || 0);
+  };
+
+  // ensure boundary handler exists where supported
+  try{ u.addEventListener && u.addEventListener('boundary', ()=>{}); } catch(_){}
+
+  window.speechSynthesis.speak(u);
+}
+
+function pause(){ if(window.speechSynthesis.speaking && !window.speechSynthesis.paused) window.speechSynthesis.pause(); }
+function resume(){ if(window.speechSynthesis.paused) window.speechSynthesis.resume(); }
+function stop(silent=false){
+  if(currentUtter){ try{ currentUtter.onend = null; } catch(_){} currentUtter = null; }
+  window.speechSynthesis.cancel();
+  playing = false;
+  if(!silent) statLine.textContent = 'Stopped.';
+  qsa('.w.active').forEach(el=>el.classList.remove('active'));
+  updateProgress(0);
+}
+
+/* UI wiring */
+playBtn.onclick = speak;
+pauseBtn.onclick = pause;
+resumeBtn.onclick = resume;
+stopBtn.onclick = ()=>stop(false);
+sampleBtn.onclick = ()=>{
+  textInput.value = `You’re listening to the AI Voice Reader.
+It runs entirely in your browser using the Web Speech API — no servers, no uploads.
+Use “Smart” speed for automatic pacing based on sentence density and length, or switch to Quick, Advanced, or Super speed.
+Toggle pause with Space, stop with Escape, and enjoy!`;
+  localStorage.setItem('tts_text', textInput.value);
+  autoResizeText();
+  applySpeedMode();
+  renderPreview();
+};
+clearBtn.onclick = ()=>{
+  textInput.value = '';
+  localStorage.removeItem('tts_text');
+  autoResizeText();
+  renderPreview();
+};
+
+/* pitch/volume UI */
+pitchEl.oninput = ()=> qs('#pitchVal').textContent = Number(pitchEl.value).toFixed(1);
+volumeEl.oninput = ()=> qs('#volVal').textContent = Number(volumeEl.value).toFixed(2);
+
+/* when user picks a language hint, try to auto-select voice */
+langHint.onchange = ()=>{
+  selectVoiceForLang(langHint.value);
+  // If smart mode, recompute rate
+  if(speedMode.value === 'smart') applySpeedMode();
+};
+
+/* when user picks a voice, no-op (they can override) */
+voiceSel.onchange = ()=> { /* user-selected */ };
+
+/* keyboard hotkeys */
+window.addEventListener('keydown', (e)=>{
+  // ignore typical typing in inputs
+  const activeTag = document.activeElement && document.activeElement.tagName;
+  if(e.key === ' ' && !e.ctrlKey && !e.metaKey && !e.altKey){
+    if(activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') {
+      // allow space in textarea; only trigger if not in form fields except when not typing
+      if(activeTag === 'TEXTAREA' && document.activeElement === textInput) {
+        e.preventDefault();
+        if(window.speechSynthesis.paused) resume();
+        else if(playing) pause();
+        else speak();
+      }
+      return;
+    }
+    e.preventDefault();
+    if(window.speechSynthesis.paused) resume();
+    else if(playing) pause();
+    else speak();
+  }
+  if(e.key === 'Escape'){ stop(); }
+  if(e.key === 'Enter' && document.activeElement === textInput){
+    e.preventDefault(); speak();
+  }
+});
+
+/* expose some helpful UI behavior when voices load */
+function safeLoadVoicesOnce(){
+  if(!supportsTTS) return;
+  loadVoices();
+  // attempt to auto-select voice that matches the selected lang hint
+  if(langHint.value) selectVoiceForLang(langHint.value);
+}
+window.addEventListener('click', safeLoadVoicesOnce, {once:true});
+
+/* initialization */
+applySpeedMode();
+renderPreview();
+setSupportNote();
+</script>
+</body>
+</html>
